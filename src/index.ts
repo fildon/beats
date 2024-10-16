@@ -1,5 +1,27 @@
 import * as Tone from "tone";
 
+// @ts-ignore
+import hihat from "../audio/hihat.mp3";
+// @ts-ignore
+import kick from "../audio/kick.mp3";
+// @ts-ignore
+import snare from "../audio/snare.mp3";
+// @ts-ignore
+import tom1 from "../audio/tom1.mp3";
+// @ts-ignore
+import tom2 from "../audio/tom2.mp3";
+// @ts-ignore
+import tom3 from "../audio/tom3.mp3";
+
+const audioSources = {
+  hihat,
+  kick,
+  snare,
+  tom1,
+  tom2,
+  tom3,
+};
+
 const textAreaEditor =
   document.querySelector<HTMLTextAreaElement>("#drum-tab")!;
 const buttonReset = document.querySelector<HTMLButtonElement>("#button-reset")!;
@@ -23,12 +45,7 @@ buttonStartStop.addEventListener("click", () => {
     state = "playing";
     buttonStartStop.textContent = "Stop";
 
-    // const synth = new Tone.Synth().toDestination();
-    // synth.triggerAttackRelease("C4", "8n");
-
-    const player = new Tone.Player(
-      "./drum-samples_acoustic-kit_kick.mp3"
-    ).toDestination();
+    const player = new Tone.Player(audioSources.kick).toDestination();
     player.autostart = true;
   } else {
     // TODO stop playing
