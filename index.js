@@ -17629,7 +17629,33 @@
   var Draw = getContext().draw;
   var context = getContext();
 
+  // audio/hihat.mp3
+  var hihat_default = "./hihat-LGNLSE6T.mp3";
+
+  // audio/kick.mp3
+  var kick_default = "./kick-QQS2AU4H.mp3";
+
+  // audio/snare.mp3
+  var snare_default = "./snare-EPYO426O.mp3";
+
+  // audio/tom1.mp3
+  var tom1_default = "./tom1-Z2CZQZQV.mp3";
+
+  // audio/tom2.mp3
+  var tom2_default = "./tom2-FUW7JDRU.mp3";
+
+  // audio/tom3.mp3
+  var tom3_default = "./tom3-EZX26TG3.mp3";
+
   // src/index.ts
+  var audioSources = {
+    hihat: hihat_default,
+    kick: kick_default,
+    snare: snare_default,
+    tom1: tom1_default,
+    tom2: tom2_default,
+    tom3: tom3_default
+  };
   var textAreaEditor = document.querySelector("#drum-tab");
   var buttonReset = document.querySelector("#button-reset");
   var buttonStartStop = document.querySelector("#button-start-stop");
@@ -17646,9 +17672,7 @@
     if (state === "paused") {
       state = "playing";
       buttonStartStop.textContent = "Stop";
-      const player = new Player(
-        "./drum-samples_acoustic-kit_kick.mp3"
-      ).toDestination();
+      const player = new Player(audioSources.kick).toDestination();
       player.autostart = true;
     } else {
       state = "paused";
