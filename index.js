@@ -18078,6 +18078,8 @@
   var textAreaEditor = document.querySelector("#drum-tab");
   var buttonReset = document.querySelector("#button-reset");
   var buttonStartStop = document.querySelector("#button-start-stop");
+  var bpmDisplay = document.querySelector("#bpm-display");
+  var rangeBPM = document.querySelector("#bpm");
   var DEFAULT_INPUT = `HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
  B|o-------o-------||
@@ -18116,6 +18118,11 @@
       hihatLoop.stop();
       getTransport().stop();
     }
+  });
+  rangeBPM.addEventListener("input", (event) => {
+    if (!event.target) return;
+    bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
+    getTransport().bpm.value = parseInt(event.target.value);
   });
 })();
 /*! Bundled license information:
