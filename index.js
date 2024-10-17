@@ -18109,7 +18109,7 @@
       snareLoop.start("4n");
       hihatLoop.start();
       getTransport().start();
-      getTransport().bpm.value = 80;
+      getTransport().bpm.value = parseInt(rangeBPM.value);
     } else {
       state = "paused";
       buttonStartStop.textContent = "Start";
