@@ -38,18 +38,38 @@ buttonReset.addEventListener(
   () => (textAreaEditor.value = DEFAULT_INPUT)
 );
 
-let state = "paused"; // or "playing"
-buttonStartStop.addEventListener("click", () => {
+let state: "playing" | "paused" = "paused";
+
+const kickPlayer = new Tone.Player(audioSources.kick).toDestination();
+const kickLoop = new Tone.Loop((time) => {
+  kickPlayer.start(time);
+}, Tone.Time({ "4n": 2 }).valueOf());
+
+const snarePlayer = new Tone.Player(audioSources.snare).toDestination();
+const snareLoop = new Tone.Loop((time) => {
+  snarePlayer.start(time);
+}, Tone.Time({ "4n": 2 }).valueOf());
+
+const hihatPlayer = new Tone.Player(audioSources.hihat).toDestination();
+const hihatLoop = new Tone.Loop((time) => {
+  hihatPlayer.start(time);
+}, Tone.Time({ "8n": 1 }).valueOf());
+
+buttonStartStop.addEventListener("click", async () => {
   if (state === "paused") {
-    // TODO start playing
     state = "playing";
     buttonStartStop.textContent = "Stop";
-
-    const player = new Tone.Player(audioSources.kick).toDestination();
-    player.autostart = true;
+    kickLoop.start();
+    snareLoop.start("4n");
+    hihatLoop.start();
+    Tone.getTransport().start();
+    Tone.getTransport().bpm.value = 80; // Make this configurable in the UI
   } else {
-    // TODO stop playing
     state = "paused";
     buttonStartStop.textContent = "Start";
+    kickLoop.stop();
+    snareLoop.stop();
+    hihatLoop.stop();
+    Tone.getTransport().stop();
   }
 });
