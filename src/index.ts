@@ -27,6 +27,8 @@ const textAreaEditor =
 const buttonReset = document.querySelector<HTMLButtonElement>("#button-reset")!;
 const buttonStartStop =
   document.querySelector<HTMLButtonElement>("#button-start-stop")!;
+const bpmDisplay = document.querySelector<HTMLSpanElement>("#bpm-display")!;
+const rangeBPM = document.querySelector<HTMLInputElement>("#bpm")!;
 
 const DEFAULT_INPUT = `HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
@@ -63,7 +65,7 @@ buttonStartStop.addEventListener("click", async () => {
     snareLoop.start("4n");
     hihatLoop.start();
     Tone.getTransport().start();
-    Tone.getTransport().bpm.value = 80; // Make this configurable in the UI
+    Tone.getTransport().bpm.value = parseInt(rangeBPM.value);
   } else {
     state = "paused";
     buttonStartStop.textContent = "Start";
@@ -72,4 +74,10 @@ buttonStartStop.addEventListener("click", async () => {
     hihatLoop.stop();
     Tone.getTransport().stop();
   }
+});
+
+rangeBPM.addEventListener("input", (event: any) => {
+  if (!event.target) return;
+  bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
+  Tone.getTransport().bpm.value = parseInt(event.target.value);
 });
