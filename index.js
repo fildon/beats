@@ -9981,6 +9981,9 @@
       return this.context.now();
     }
   };
+  function Time(value, units) {
+    return new TimeClass(getContext(), value, units);
+  }
 
   // node_modules/tone/build/esm/core/type/Frequency.js
   var FrequencyClass = class _FrequencyClass extends TimeClass {
@@ -17280,6 +17283,419 @@
     timeRange(0)
   ], Sampler.prototype, "release", void 0);
 
+  // node_modules/tone/build/esm/event/ToneEvent.js
+  var ToneEvent = class _ToneEvent extends ToneWithContext {
+    constructor() {
+      const options = optionsFromArguments(_ToneEvent.getDefaults(), arguments, ["callback", "value"]);
+      super(options);
+      this.name = "ToneEvent";
+      this._state = new StateTimeline("stopped");
+      this._startOffset = 0;
+      this._loop = options.loop;
+      this.callback = options.callback;
+      this.value = options.value;
+      this._loopStart = this.toTicks(options.loopStart);
+      this._loopEnd = this.toTicks(options.loopEnd);
+      this._playbackRate = options.playbackRate;
+      this._probability = options.probability;
+      this._humanize = options.humanize;
+      this.mute = options.mute;
+      this._playbackRate = options.playbackRate;
+      this._state.increasing = true;
+      this._rescheduleEvents();
+    }
+    static getDefaults() {
+      return Object.assign(ToneWithContext.getDefaults(), {
+        callback: noOp,
+        humanize: false,
+        loop: false,
+        loopEnd: "1m",
+        loopStart: 0,
+        mute: false,
+        playbackRate: 1,
+        probability: 1,
+        value: null
+      });
+    }
+    /**
+     * Reschedule all of the events along the timeline
+     * with the updated values.
+     * @param after Only reschedules events after the given time.
+     */
+    _rescheduleEvents(after = -1) {
+      this._state.forEachFrom(after, (event) => {
+        let duration;
+        if (event.state === "started") {
+          if (event.id !== -1) {
+            this.context.transport.clear(event.id);
+          }
+          const startTick = event.time + Math.round(this.startOffset / this._playbackRate);
+          if (this._loop === true || isNumber(this._loop) && this._loop > 1) {
+            duration = Infinity;
+            if (isNumber(this._loop)) {
+              duration = this._loop * this._getLoopDuration();
+            }
+            const nextEvent = this._state.getAfter(startTick);
+            if (nextEvent !== null) {
+              duration = Math.min(duration, nextEvent.time - startTick);
+            }
+            if (duration !== Infinity) {
+              duration = new TicksClass(this.context, duration);
+            }
+            const interval = new TicksClass(this.context, this._getLoopDuration());
+            event.id = this.context.transport.scheduleRepeat(this._tick.bind(this), interval, new TicksClass(this.context, startTick), duration);
+          } else {
+            event.id = this.context.transport.schedule(this._tick.bind(this), new TicksClass(this.context, startTick));
+          }
+        }
+      });
+    }
+    /**
+     * Returns the playback state of the note, either "started" or "stopped".
+     */
+    get state() {
+      return this._state.getValueAtTime(this.context.transport.ticks);
+    }
+    /**
+     * The start from the scheduled start time.
+     */
+    get startOffset() {
+      return this._startOffset;
+    }
+    set startOffset(offset) {
+      this._startOffset = offset;
+    }
+    /**
+     * The probability of the notes being triggered.
+     */
+    get probability() {
+      return this._probability;
+    }
+    set probability(prob) {
+      this._probability = prob;
+    }
+    /**
+     * If set to true, will apply small random variation
+     * to the callback time. If the value is given as a time, it will randomize
+     * by that amount.
+     * @example
+     * const event = new Tone.ToneEvent();
+     * event.humanize = true;
+     */
+    get humanize() {
+      return this._humanize;
+    }
+    set humanize(variation) {
+      this._humanize = variation;
+    }
+    /**
+     * Start the note at the given time.
+     * @param  time  When the event should start.
+     */
+    start(time) {
+      const ticks = this.toTicks(time);
+      if (this._state.getValueAtTime(ticks) === "stopped") {
+        this._state.add({
+          id: -1,
+          state: "started",
+          time: ticks
+        });
+        this._rescheduleEvents(ticks);
+      }
+      return this;
+    }
+    /**
+     * Stop the Event at the given time.
+     * @param  time  When the event should stop.
+     */
+    stop(time) {
+      this.cancel(time);
+      const ticks = this.toTicks(time);
+      if (this._state.getValueAtTime(ticks) === "started") {
+        this._state.setStateAtTime("stopped", ticks, { id: -1 });
+        const previousEvent = this._state.getBefore(ticks);
+        let rescheduleTime = ticks;
+        if (previousEvent !== null) {
+          rescheduleTime = previousEvent.time;
+        }
+        this._rescheduleEvents(rescheduleTime);
+      }
+      return this;
+    }
+    /**
+     * Cancel all scheduled events greater than or equal to the given time
+     * @param  time  The time after which events will be cancel.
+     */
+    cancel(time) {
+      time = defaultArg(time, -Infinity);
+      const ticks = this.toTicks(time);
+      this._state.forEachFrom(ticks, (event) => {
+        this.context.transport.clear(event.id);
+      });
+      this._state.cancel(ticks);
+      return this;
+    }
+    /**
+     * The callback function invoker. Also
+     * checks if the Event is done playing
+     * @param  time  The time of the event in seconds
+     */
+    _tick(time) {
+      const ticks = this.context.transport.getTicksAtTime(time);
+      if (!this.mute && this._state.getValueAtTime(ticks) === "started") {
+        if (this.probability < 1 && Math.random() > this.probability) {
+          return;
+        }
+        if (this.humanize) {
+          let variation = 0.02;
+          if (!isBoolean(this.humanize)) {
+            variation = this.toSeconds(this.humanize);
+          }
+          time += (Math.random() * 2 - 1) * variation;
+        }
+        this.callback(time, this.value);
+      }
+    }
+    /**
+     * Get the duration of the loop.
+     */
+    _getLoopDuration() {
+      return (this._loopEnd - this._loopStart) / this._playbackRate;
+    }
+    /**
+     * If the note should loop or not
+     * between ToneEvent.loopStart and
+     * ToneEvent.loopEnd. If set to true,
+     * the event will loop indefinitely,
+     * if set to a number greater than 1
+     * it will play a specific number of
+     * times, if set to false, 0 or 1, the
+     * part will only play once.
+     */
+    get loop() {
+      return this._loop;
+    }
+    set loop(loop) {
+      this._loop = loop;
+      this._rescheduleEvents();
+    }
+    /**
+     * The playback rate of the event. Defaults to 1.
+     * @example
+     * const note = new Tone.ToneEvent();
+     * note.loop = true;
+     * // repeat the note twice as fast
+     * note.playbackRate = 2;
+     */
+    get playbackRate() {
+      return this._playbackRate;
+    }
+    set playbackRate(rate) {
+      this._playbackRate = rate;
+      this._rescheduleEvents();
+    }
+    /**
+     * The loopEnd point is the time the event will loop
+     * if ToneEvent.loop is true.
+     */
+    get loopEnd() {
+      return new TicksClass(this.context, this._loopEnd).toSeconds();
+    }
+    set loopEnd(loopEnd) {
+      this._loopEnd = this.toTicks(loopEnd);
+      if (this._loop) {
+        this._rescheduleEvents();
+      }
+    }
+    /**
+     * The time when the loop should start.
+     */
+    get loopStart() {
+      return new TicksClass(this.context, this._loopStart).toSeconds();
+    }
+    set loopStart(loopStart) {
+      this._loopStart = this.toTicks(loopStart);
+      if (this._loop) {
+        this._rescheduleEvents();
+      }
+    }
+    /**
+     * The current progress of the loop interval.
+     * Returns 0 if the event is not started yet or
+     * it is not set to loop.
+     */
+    get progress() {
+      if (this._loop) {
+        const ticks = this.context.transport.ticks;
+        const lastEvent = this._state.get(ticks);
+        if (lastEvent !== null && lastEvent.state === "started") {
+          const loopDuration = this._getLoopDuration();
+          const progress = (ticks - lastEvent.time) % loopDuration;
+          return progress / loopDuration;
+        } else {
+          return 0;
+        }
+      } else {
+        return 0;
+      }
+    }
+    dispose() {
+      super.dispose();
+      this.cancel();
+      this._state.dispose();
+      return this;
+    }
+  };
+
+  // node_modules/tone/build/esm/event/Loop.js
+  var Loop = class _Loop extends ToneWithContext {
+    constructor() {
+      const options = optionsFromArguments(_Loop.getDefaults(), arguments, [
+        "callback",
+        "interval"
+      ]);
+      super(options);
+      this.name = "Loop";
+      this._event = new ToneEvent({
+        context: this.context,
+        callback: this._tick.bind(this),
+        loop: true,
+        loopEnd: options.interval,
+        playbackRate: options.playbackRate,
+        probability: options.probability,
+        humanize: options.humanize
+      });
+      this.callback = options.callback;
+      this.iterations = options.iterations;
+    }
+    static getDefaults() {
+      return Object.assign(ToneWithContext.getDefaults(), {
+        interval: "4n",
+        callback: noOp,
+        playbackRate: 1,
+        iterations: Infinity,
+        probability: 1,
+        mute: false,
+        humanize: false
+      });
+    }
+    /**
+     * Start the loop at the specified time along the Transport's timeline.
+     * @param  time  When to start the Loop.
+     */
+    start(time) {
+      this._event.start(time);
+      return this;
+    }
+    /**
+     * Stop the loop at the given time.
+     * @param  time  When to stop the Loop.
+     */
+    stop(time) {
+      this._event.stop(time);
+      return this;
+    }
+    /**
+     * Cancel all scheduled events greater than or equal to the given time
+     * @param  time  The time after which events will be cancel.
+     */
+    cancel(time) {
+      this._event.cancel(time);
+      return this;
+    }
+    /**
+     * Internal function called when the notes should be called
+     * @param time  The time the event occurs
+     */
+    _tick(time) {
+      this.callback(time);
+    }
+    /**
+     * The state of the Loop, either started or stopped.
+     */
+    get state() {
+      return this._event.state;
+    }
+    /**
+     * The progress of the loop as a value between 0-1. 0, when the loop is stopped or done iterating.
+     */
+    get progress() {
+      return this._event.progress;
+    }
+    /**
+     * The time between successive callbacks.
+     * @example
+     * const loop = new Tone.Loop();
+     * loop.interval = "8n"; // loop every 8n
+     */
+    get interval() {
+      return this._event.loopEnd;
+    }
+    set interval(interval) {
+      this._event.loopEnd = interval;
+    }
+    /**
+     * The playback rate of the loop. The normal playback rate is 1 (no change).
+     * A `playbackRate` of 2 would be twice as fast.
+     */
+    get playbackRate() {
+      return this._event.playbackRate;
+    }
+    set playbackRate(rate) {
+      this._event.playbackRate = rate;
+    }
+    /**
+     * Random variation +/-0.01s to the scheduled time.
+     * Or give it a time value which it will randomize by.
+     */
+    get humanize() {
+      return this._event.humanize;
+    }
+    set humanize(variation) {
+      this._event.humanize = variation;
+    }
+    /**
+     * The probably of the callback being invoked.
+     */
+    get probability() {
+      return this._event.probability;
+    }
+    set probability(prob) {
+      this._event.probability = prob;
+    }
+    /**
+     * Muting the Loop means that no callbacks are invoked.
+     */
+    get mute() {
+      return this._event.mute;
+    }
+    set mute(mute) {
+      this._event.mute = mute;
+    }
+    /**
+     * The number of iterations of the loop. The default value is `Infinity` (loop forever).
+     */
+    get iterations() {
+      if (this._event.loop === true) {
+        return Infinity;
+      } else {
+        return this._event.loop;
+      }
+    }
+    set iterations(iters) {
+      if (iters === Infinity) {
+        this._event.loop = true;
+      } else {
+        this._event.loop = iters;
+      }
+    }
+    dispose() {
+      super.dispose();
+      this._event.dispose();
+      return this;
+    }
+  };
+
   // node_modules/tone/build/esm/component/channel/Panner.js
   var Panner = class _Panner extends ToneAudioNode {
     constructor() {
@@ -17623,6 +18039,9 @@
 
   // node_modules/tone/build/esm/index.js
   var Transport = getContext().transport;
+  function getTransport() {
+    return getContext().transport;
+  }
   var Destination = getContext().destination;
   var Master = getContext().destination;
   var Listener = getContext().listener;
@@ -17668,15 +18087,34 @@
     () => textAreaEditor.value = DEFAULT_INPUT
   );
   var state = "paused";
-  buttonStartStop.addEventListener("click", () => {
+  var kickPlayer = new Player(audioSources.kick).toDestination();
+  var kickLoop = new Loop((time) => {
+    kickPlayer.start(time);
+  }, Time({ "4n": 2 }).valueOf());
+  var snarePlayer = new Player(audioSources.snare).toDestination();
+  var snareLoop = new Loop((time) => {
+    snarePlayer.start(time);
+  }, Time({ "4n": 2 }).valueOf());
+  var hihatPlayer = new Player(audioSources.hihat).toDestination();
+  var hihatLoop = new Loop((time) => {
+    hihatPlayer.start(time);
+  }, Time({ "8n": 1 }).valueOf());
+  buttonStartStop.addEventListener("click", async () => {
     if (state === "paused") {
       state = "playing";
       buttonStartStop.textContent = "Stop";
-      const player = new Player(audioSources.kick).toDestination();
-      player.autostart = true;
+      kickLoop.start();
+      snareLoop.start("4n");
+      hihatLoop.start();
+      getTransport().start();
+      getTransport().bpm.value = 80;
     } else {
       state = "paused";
       buttonStartStop.textContent = "Start";
+      kickLoop.stop();
+      snareLoop.stop();
+      hihatLoop.stop();
+      getTransport().stop();
     }
   });
 })();
@@ -17690,3 +18128,4 @@ tone/build/esm/core/Tone.js:
    * @copyright 2014-2024 Yotam Mann
    *)
 */
+//# sourceMappingURL=index.js.map
