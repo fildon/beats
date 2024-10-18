@@ -26,22 +26,45 @@ const kickPlayer = new Tone.Player(audioSources.kick).toDestination();
 const snarePlayer = new Tone.Player(audioSources.snare).toDestination();
 const hihatPlayer = new Tone.Player(audioSources.hihat).toDestination();
 
+const lineToLoops = (
+  tabLine: string,
+  player: Tone.Player
+): Array<Tone.Loop> => {
+  // Slice off leading and trailing junk
+  const trimmedLine = tabLine.slice(3, 19);
+  return trimmedLine.split("").flatMap((symbol, index) => {
+    if (["x", "o"].includes(symbol)) {
+      return new Tone.Loop((time) => {
+        player.start(time);
+      }, Tone.Time({ "1m": 1 }).valueOf()).start(
+        Tone.Time({ "16n": index }).valueOf()
+      );
+    } else {
+      return [];
+    }
+  });
+};
+
 export class AudioEngine {
   constructor(private loops: Array<Tone.Loop> = []) {}
 
   start({ tab }: { tab: string }) {
-    // TODO parse tab
-    this.loops = [
-      new Tone.Loop((time) => {
-        kickPlayer.start(time);
-      }, Tone.Time({ "4n": 2 }).valueOf()).start(),
-      new Tone.Loop((time) => {
-        snarePlayer.start(time);
-      }, Tone.Time({ "4n": 2 }).valueOf()).start("4n"),
-      new Tone.Loop((time) => {
-        hihatPlayer.start(time);
-      }, Tone.Time({ "8n": 1 }).valueOf()).start(),
-    ];
+    // Standardize newlines just in case
+    tab.replace(/(\r\n)|\r|\n/g, "\n");
+
+    const tabLines = tab.split(/\n/g);
+    this.loops = tabLines.flatMap((tabLine) => {
+      if (tabLine.startsWith("HH")) {
+        return lineToLoops(tabLine, hihatPlayer);
+      }
+      if (tabLine.startsWith(" S")) {
+        return lineToLoops(tabLine, snarePlayer);
+      }
+      if (tabLine.startsWith(" B")) {
+        return lineToLoops(tabLine, kickPlayer);
+      }
+      return [];
+    });
     Tone.getTransport().start();
   }
 
