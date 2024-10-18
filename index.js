@@ -18079,36 +18079,25 @@
   var snarePlayer = new Player(audioSources.snare).toDestination();
   var hihatPlayer = new Player(audioSources.hihat).toDestination();
   var AudioEngine = class {
-    loops;
-    constructor() {
-      this.loops = [
-        {
-          offset: "0",
-          toneLoop: new Loop((time) => {
-            kickPlayer.start(time);
-          }, Time({ "4n": 2 }).valueOf())
-        },
-        {
-          offset: "4n",
-          toneLoop: new Loop((time) => {
-            snarePlayer.start(time);
-          }, Time({ "4n": 2 }).valueOf())
-        },
-        {
-          offset: "0",
-          toneLoop: new Loop((time) => {
-            hihatPlayer.start(time);
-          }, Time({ "8n": 1 }).valueOf())
-        }
-      ];
+    constructor(loops = []) {
+      this.loops = loops;
     }
-    start({ bpm } = {}) {
-      this.loops.forEach((loop) => loop.toneLoop.start(loop.offset));
+    start({ tab }) {
+      this.loops = [
+        new Loop((time) => {
+          kickPlayer.start(time);
+        }, Time({ "4n": 2 }).valueOf()).start(),
+        new Loop((time) => {
+          snarePlayer.start(time);
+        }, Time({ "4n": 2 }).valueOf()).start("4n"),
+        new Loop((time) => {
+          hihatPlayer.start(time);
+        }, Time({ "8n": 1 }).valueOf()).start()
+      ];
       getTransport().start();
-      if (bpm) getTransport().bpm.value = bpm;
     }
     stop() {
-      this.loops.forEach((loop) => loop.toneLoop.stop());
+      this.loops.forEach((loop) => loop.stop());
       getTransport().stop();
       getTransport().state;
     }
@@ -18137,7 +18126,7 @@
       audioEngine.stop();
       buttonStartStop.textContent = "Start";
     } else {
-      audioEngine.start({ bpm: parseInt(rangeBPM.value) });
+      audioEngine.start({ tab: textAreaEditor.value });
       buttonStartStop.textContent = "Stop";
     }
   });
