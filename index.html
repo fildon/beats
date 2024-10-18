@@ -20,6 +20,7 @@
       align-items: center;
       & > * + * {
         margin-block-start: 1rem;
+        max-width: 60ch;
       }
     }
   </style>
@@ -30,6 +31,13 @@ HH|x-x-x-x-x-x-x-x-||
  B|o-------o-------||
    1 + 2 + 3 + 4 +
     </textarea>
+    <p>
+      This project is in active development. Not all features are ready yet. At
+      present the drum tab is parsed only at the moment the start button is
+      pressed. At that time, only lines starting with "HH", " S", " B" are
+      considered. For each line, any "x" or "o" is treated as a hit. Each
+      character represents one 16th of a measure (one semiquaver).
+    </p>
     <button id="button-reset">Reset</button>
     <button id="button-start-stop">Start</button>
     <span id="bpm-display">Current BPM: 80</span>

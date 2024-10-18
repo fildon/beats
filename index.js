@@ -18078,22 +18078,39 @@
   var kickPlayer = new Player(audioSources.kick).toDestination();
   var snarePlayer = new Player(audioSources.snare).toDestination();
   var hihatPlayer = new Player(audioSources.hihat).toDestination();
+  var lineToLoops = (tabLine, player) => {
+    const trimmedLine = tabLine.slice(3, 19);
+    return trimmedLine.split("").flatMap((symbol, index) => {
+      if (["x", "o"].includes(symbol)) {
+        return new Loop((time) => {
+          player.start(time);
+        }, Time({ "1m": 1 }).valueOf()).start(
+          Time({ "16n": index }).valueOf()
+        );
+      } else {
+        return [];
+      }
+    });
+  };
   var AudioEngine = class {
     constructor(loops = []) {
       this.loops = loops;
     }
     start({ tab }) {
-      this.loops = [
-        new Loop((time) => {
-          kickPlayer.start(time);
-        }, Time({ "4n": 2 }).valueOf()).start(),
-        new Loop((time) => {
-          snarePlayer.start(time);
-        }, Time({ "4n": 2 }).valueOf()).start("4n"),
-        new Loop((time) => {
-          hihatPlayer.start(time);
-        }, Time({ "8n": 1 }).valueOf()).start()
-      ];
+      tab.replace(/(\r\n)|\r|\n/g, "\n");
+      const tabLines = tab.split(/\n/g);
+      this.loops = tabLines.flatMap((tabLine) => {
+        if (tabLine.startsWith("HH")) {
+          return lineToLoops(tabLine, hihatPlayer);
+        }
+        if (tabLine.startsWith(" S")) {
+          return lineToLoops(tabLine, snarePlayer);
+        }
+        if (tabLine.startsWith(" B")) {
+          return lineToLoops(tabLine, kickPlayer);
+        }
+        return [];
+      });
       getTransport().start();
     }
     stop() {
