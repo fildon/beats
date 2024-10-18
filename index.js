@@ -10440,10 +10440,10 @@
      * @param  time  The time to query.
      * @param options Any additional options that are needed in the timeline.
      */
-    setStateAtTime(state2, time, options) {
+    setStateAtTime(state, time, options) {
       assertRange(time, 0);
       this.add(Object.assign({}, options, {
-        state: state2,
+        state,
         time
       }));
       return this;
@@ -10454,11 +10454,11 @@
      * @param  time  When to check before
      * @return  The event with the given state before the time
      */
-    getLastState(state2, time) {
+    getLastState(state, time) {
       const index = this._search(time);
       for (let i = index; i >= 0; i--) {
         const event = this._timeline[i];
-        if (event.state === state2) {
+        if (event.state === state) {
           return event;
         }
       }
@@ -10469,12 +10469,12 @@
      * @param  time  When to check from
      * @return  The event with the given state after the time
      */
-    getNextState(state2, time) {
+    getNextState(state, time) {
       const index = this._search(time);
       if (index !== -1) {
         for (let i = index; i < this._timeline.length; i++) {
           const event = this._timeline[i];
-          if (event.state === state2) {
+          if (event.state === state) {
             return event;
           }
         }
@@ -18066,7 +18066,7 @@
   // audio/tom3.mp3
   var tom3_default = "./tom3-EZX26TG3.mp3";
 
-  // src/index.ts
+  // src/audioEngine.ts
   var audioSources = {
     hihat: hihat_default,
     kick: kick_default,
@@ -18075,6 +18075,49 @@
     tom2: tom2_default,
     tom3: tom3_default
   };
+  var kickPlayer = new Player(audioSources.kick).toDestination();
+  var snarePlayer = new Player(audioSources.snare).toDestination();
+  var hihatPlayer = new Player(audioSources.hihat).toDestination();
+  var AudioEngine = class {
+    loops;
+    constructor() {
+      this.loops = [
+        {
+          offset: "0",
+          toneLoop: new Loop((time) => {
+            kickPlayer.start(time);
+          }, Time({ "4n": 2 }).valueOf())
+        },
+        {
+          offset: "4n",
+          toneLoop: new Loop((time) => {
+            snarePlayer.start(time);
+          }, Time({ "4n": 2 }).valueOf())
+        },
+        {
+          offset: "0",
+          toneLoop: new Loop((time) => {
+            hihatPlayer.start(time);
+          }, Time({ "8n": 1 }).valueOf())
+        }
+      ];
+    }
+    start({ bpm } = {}) {
+      this.loops.forEach((loop) => loop.toneLoop.start(loop.offset));
+      getTransport().start();
+      if (bpm) getTransport().bpm.value = bpm;
+    }
+    stop() {
+      this.loops.forEach((loop) => loop.toneLoop.stop());
+      getTransport().stop();
+      getTransport().state;
+    }
+    get state() {
+      return getTransport().state;
+    }
+  };
+
+  // src/index.ts
   var textAreaEditor = document.querySelector("#drum-tab");
   var buttonReset = document.querySelector("#button-reset");
   var buttonStartStop = document.querySelector("#button-start-stop");
@@ -18088,35 +18131,14 @@
     "click",
     () => textAreaEditor.value = DEFAULT_INPUT
   );
-  var state = "paused";
-  var kickPlayer = new Player(audioSources.kick).toDestination();
-  var kickLoop = new Loop((time) => {
-    kickPlayer.start(time);
-  }, Time({ "4n": 2 }).valueOf());
-  var snarePlayer = new Player(audioSources.snare).toDestination();
-  var snareLoop = new Loop((time) => {
-    snarePlayer.start(time);
-  }, Time({ "4n": 2 }).valueOf());
-  var hihatPlayer = new Player(audioSources.hihat).toDestination();
-  var hihatLoop = new Loop((time) => {
-    hihatPlayer.start(time);
-  }, Time({ "8n": 1 }).valueOf());
+  var audioEngine = new AudioEngine();
   buttonStartStop.addEventListener("click", async () => {
-    if (state === "paused") {
-      state = "playing";
-      buttonStartStop.textContent = "Stop";
-      kickLoop.start();
-      snareLoop.start("4n");
-      hihatLoop.start();
-      getTransport().start();
-      getTransport().bpm.value = parseInt(rangeBPM.value);
-    } else {
-      state = "paused";
+    if (audioEngine.state === "started") {
+      audioEngine.stop();
       buttonStartStop.textContent = "Start";
-      kickLoop.stop();
-      snareLoop.stop();
-      hihatLoop.stop();
-      getTransport().stop();
+    } else {
+      audioEngine.start({ bpm: parseInt(rangeBPM.value) });
+      buttonStartStop.textContent = "Stop";
     }
   });
   rangeBPM.addEventListener("input", (event) => {
