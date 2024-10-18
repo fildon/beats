@@ -2,6 +2,8 @@
 
 Drum tab to synthesizer.
 
+Deployed at [rupertmckay.com](https://rupertmckay.com/beats/)
+
 ## Local Development
 
 Audio is driven by local mp3 files.
