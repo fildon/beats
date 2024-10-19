@@ -26,17 +26,37 @@ const kickPlayer = new Tone.Player(audioSources.kick).toDestination();
 const snarePlayer = new Tone.Player(audioSources.snare).toDestination();
 const hihatPlayer = new Tone.Player(audioSources.hihat).toDestination();
 
-const lineToLoops = (
-  tabLine: string,
-  player: Tone.Player
-): Array<Tone.Loop> => {
-  // Slice off leading and trailing junk
-  const trimmedLine = tabLine.slice(3, 19);
-  return trimmedLine.split("").flatMap((symbol, index) => {
+const selectPlayer = (instrument: string) => ({
+  hh: hihatPlayer,
+  s: snarePlayer,
+  b: kickPlayer,
+}[instrument.toLowerCase()]);
+
+type InstrumentLine = { instrument: string, pattern: string };
+
+const parseLine = (tabLine: string): InstrumentLine | null => {
+  // Split a drum tab line into its instrument and its pattern
+  // e.g. HH|x-x-x-x-|| turns into ["HH", "x-x-x-x-", ...]
+  const [instrument, pattern] = tabLine.split('|').map(string => string.trim());
+  return instrument && pattern ? { instrument, pattern } : null;
+}
+
+const parseTabToInstrumentLines = (tab: string): InstrumentLine[] => {
+  // Standardize newlines just in case
+  tab.replace(/(\r\n)|\r|\n/g, "\n");
+  const tabLines = tab.split(/\n/g);
+  return tabLines.map(parseLine).filter(line => !!line);
+}
+
+const lineToLoops = (line: InstrumentLine): Array<Tone.Loop> => {
+  const player = selectPlayer(line.instrument);
+  if (!player) return [];
+  const loopInterval = line.pattern.length
+  return line.pattern.split("").flatMap((symbol, index) => {
     if (["x", "o"].includes(symbol)) {
       return new Tone.Loop((time) => {
         player.start(time);
-      }, Tone.Time({ "1m": 1 }).valueOf()).start(
+      }, Tone.Time({ "16n": loopInterval }).valueOf()).start(
         Tone.Time({ "16n": index }).valueOf()
       );
     } else {
@@ -46,25 +66,11 @@ const lineToLoops = (
 };
 
 export class AudioEngine {
-  constructor(private loops: Array<Tone.Loop> = []) {}
+  constructor(private loops: Array<Tone.Loop> = []) { }
 
   start({ tab }: { tab: string }) {
-    // Standardize newlines just in case
-    tab.replace(/(\r\n)|\r|\n/g, "\n");
-
-    const tabLines = tab.split(/\n/g);
-    this.loops = tabLines.flatMap((tabLine) => {
-      if (tabLine.startsWith("HH")) {
-        return lineToLoops(tabLine, hihatPlayer);
-      }
-      if (tabLine.startsWith(" S")) {
-        return lineToLoops(tabLine, snarePlayer);
-      }
-      if (tabLine.startsWith(" B")) {
-        return lineToLoops(tabLine, kickPlayer);
-      }
-      return [];
-    });
+    const tabLines = parseTabToInstrumentLines(tab);
+    this.loops = tabLines.flatMap(lineToLoops);
     Tone.getTransport().start();
   }
 
