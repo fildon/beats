@@ -18067,21 +18067,21 @@
   var tom3_default = "./tom3-EZX26TG3.mp3";
 
   // src/audioEngine.ts
-  var audioSources = {
-    hihat: hihat_default,
-    kick: kick_default,
-    snare: snare_default,
-    tom1: tom1_default,
-    tom2: tom2_default,
-    tom3: tom3_default
-  };
-  var kickPlayer = new Player(audioSources.kick).toDestination();
-  var snarePlayer = new Player(audioSources.snare).toDestination();
-  var hihatPlayer = new Player(audioSources.hihat).toDestination();
+  var kickPlayer = new Player(kick_default).toDestination();
+  var snarePlayer = new Player(snare_default).toDestination();
+  var hihatPlayer = new Player(hihat_default).toDestination();
+  var tom1Player = new Player(tom1_default).toDestination();
+  var tom2Player = new Player(tom2_default).toDestination();
+  var tom3Player = new Player(tom3_default).toDestination();
   var selectPlayer = (instrument) => ({
     hh: hihatPlayer,
     s: snarePlayer,
-    b: kickPlayer
+    // Kick is aliased as both "b" and "bd"
+    b: kickPlayer,
+    bd: kickPlayer,
+    t1: tom1Player,
+    t2: tom2Player,
+    t3: tom3Player
   })[instrument.toLowerCase()];
   var parseLine = (tabLine) => {
     const [instrument, pattern] = tabLine.split("|").map((string) => string.trim());
