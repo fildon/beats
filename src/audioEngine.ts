@@ -13,45 +13,47 @@ import tom2 from "../audio/tom2.mp3";
 // @ts-ignore
 import tom3 from "../audio/tom3.mp3";
 
-const audioSources = {
-  hihat,
-  kick,
-  snare,
-  tom1,
-  tom2,
-  tom3,
-};
+const kickPlayer = new Tone.Player(kick).toDestination();
+const snarePlayer = new Tone.Player(snare).toDestination();
+const hihatPlayer = new Tone.Player(hihat).toDestination();
+const tom1Player = new Tone.Player(tom1).toDestination();
+const tom2Player = new Tone.Player(tom2).toDestination();
+const tom3Player = new Tone.Player(tom3).toDestination();
 
-const kickPlayer = new Tone.Player(audioSources.kick).toDestination();
-const snarePlayer = new Tone.Player(audioSources.snare).toDestination();
-const hihatPlayer = new Tone.Player(audioSources.hihat).toDestination();
+const selectPlayer = (instrument: string) =>
+  ({
+    hh: hihatPlayer,
+    s: snarePlayer,
+    // Kick is aliased as both "b" and "bd"
+    b: kickPlayer,
+    bd: kickPlayer,
+    t1: tom1Player,
+    t2: tom2Player,
+    t3: tom3Player,
+  }[instrument.toLowerCase()]);
 
-const selectPlayer = (instrument: string) => ({
-  hh: hihatPlayer,
-  s: snarePlayer,
-  b: kickPlayer,
-}[instrument.toLowerCase()]);
-
-type InstrumentLine = { instrument: string, pattern: string };
+type InstrumentLine = { instrument: string; pattern: string };
 
 const parseLine = (tabLine: string): InstrumentLine | null => {
   // Split a drum tab line into its instrument and its pattern
   // e.g. HH|x-x-x-x-|| turns into ["HH", "x-x-x-x-", ...]
-  const [instrument, pattern] = tabLine.split('|').map(string => string.trim());
+  const [instrument, pattern] = tabLine
+    .split("|")
+    .map((string) => string.trim());
   return instrument && pattern ? { instrument, pattern } : null;
-}
+};
 
 const parseTabToInstrumentLines = (tab: string): InstrumentLine[] => {
   // Standardize newlines just in case
   tab.replace(/(\r\n)|\r|\n/g, "\n");
   const tabLines = tab.split(/\n/g);
-  return tabLines.map(parseLine).filter(line => !!line);
-}
+  return tabLines.map(parseLine).filter((line) => !!line);
+};
 
 const lineToLoops = (line: InstrumentLine): Array<Tone.Loop> => {
   const player = selectPlayer(line.instrument);
   if (!player) return [];
-  const loopInterval = line.pattern.length
+  const loopInterval = line.pattern.length;
   return line.pattern.split("").flatMap((symbol, index) => {
     if (["x", "o"].includes(symbol)) {
       return new Tone.Loop((time) => {
@@ -66,7 +68,7 @@ const lineToLoops = (line: InstrumentLine): Array<Tone.Loop> => {
 };
 
 export class AudioEngine {
-  constructor(private loops: Array<Tone.Loop> = []) { }
+  constructor(private loops: Array<Tone.Loop> = []) {}
 
   start({ tab }: { tab: string }) {
     const tabLines = parseTabToInstrumentLines(tab);
