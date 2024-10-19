@@ -8,6 +8,7 @@ const buttonStartStop =
   document.querySelector<HTMLButtonElement>("#button-start-stop")!;
 const bpmDisplay = document.querySelector<HTMLSpanElement>("#bpm-display")!;
 const rangeBPM = document.querySelector<HTMLInputElement>("#bpm")!;
+const volumeInput = document.querySelector<HTMLInputElement>("#volume")!;
 
 const DEFAULT_INPUT = `HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
@@ -33,4 +34,12 @@ rangeBPM.addEventListener("input", (event: any) => {
   if (!event.target) return;
   bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
   Tone.getTransport().bpm.value = parseInt(event.target.value);
+});
+
+volumeInput.addEventListener("input", (event: any) => {
+  if (!event.target) return;
+  // We set -30 to -Infinity to enable muting audio at the minimum slider value.
+  const targetVolume =
+    event.target.value === "-30" ? -Infinity : parseInt(event.target.value);
+  Tone.getDestination().volume.setValueAtTime(targetVolume, Tone.now());
 });
