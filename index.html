@@ -23,8 +23,16 @@
         max-width: 60ch;
       }
     }
+    .group {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
+      border: 1px solid black;
+    }
   </style>
   <body>
+    <h1>Beats</h1>
     <textarea id="drum-tab" rows="5" cols="21">
 HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
@@ -33,43 +41,73 @@ HH|x-x-x-x-x-x-x-x-||
 </textarea
     >
     <p>
-      This project is in active development. Not all features are ready yet. At
-      present the drum tab is parsed only at the moment the start button is
-      pressed. At that time, only lines starting with "HH", " S", " B" are
-      considered. For each line, any "x" or "o" is treated as a hit. Each
-      character represents one 16th of a measure (one semiquaver).
+      This project is in active development. Not all features are ready yet.
     </p>
+    <details>
+      <summary>Instructions:</summary>
+      <p>
+        Each line represents one drum loop. Drum loops should start with a drum
+        type followed by `|` and then the rhythm it should play. If a line does
+        not match this format, it is ignored. The rhythm part of the line can be
+        comprised of any symbols, but only `x` and `o` are treated as hits. Each
+        character represents one 16th of a 4/4 measure (one semiquaver).
+      </p>
+    </details>
+    <details>
+      <summary>Available Drums:</summary>
+      <ul>
+        <li>HH (Hihat)</li>
+        <li>S (Snare)</li>
+        <li>B (Bass Drum)</li>
+        <li>T1 (Tom 1)</li>
+        <li>T2 (Tom 2)</li>
+        <li>T3 (Tom 3)</li>
+      </ul>
+    </details>
     <button id="button-reset">Reset</button>
     <button id="button-start-stop">Start</button>
-    <span id="bpm-display">Current BPM: 80</span>
-    <input
-      type="range"
-      id="bpm"
-      name="bpm"
-      list="bpm-markers"
-      min="40"
-      max="200"
-      value="80"
-    />
-    <label for="bpm">BPM Slider</label>
-    <datalist id="bpm-markers">
-      <option value="50"></option>
-      <option value="60"></option>
-      <option value="70"></option>
-      <option value="80"></option>
-      <option value="90"></option>
-      <option value="100"></option>
-      <option value="110"></option>
-      <option value="120"></option>
-      <option value="130"></option>
-      <option value="140"></option>
-      <option value="150"></option>
-      <option value="160"></option>
-      <option value="170"></option>
-      <option value="180"></option>
-      <option value="190"></option>
-      <option value="200"></option>
-    </datalist>
+    <div class="group">
+      <span id="bpm-display">Current BPM: 80</span>
+      <input
+        type="range"
+        id="bpm"
+        name="bpm"
+        list="bpm-markers"
+        min="40"
+        max="200"
+        value="80"
+      />
+      <label for="bpm">BPM Slider</label>
+      <datalist id="bpm-markers">
+        <option value="50"></option>
+        <option value="60"></option>
+        <option value="70"></option>
+        <option value="80"></option>
+        <option value="90"></option>
+        <option value="100"></option>
+        <option value="110"></option>
+        <option value="120"></option>
+        <option value="130"></option>
+        <option value="140"></option>
+        <option value="150"></option>
+        <option value="160"></option>
+        <option value="170"></option>
+        <option value="180"></option>
+        <option value="190"></option>
+        <option value="200"></option>
+      </datalist>
+    </div>
+    <div class="group">
+      <input
+        type="range"
+        id="volume"
+        name="volume"
+        min="-30"
+        max="30"
+        value="0"
+      />
+      <label for="volume">Volume</label>
+    </div>
     <p>Source code on <a href="https://github.com/fildon/beats/">GitHub</a></p>
   </body>
   <script type="text/javascript" src="index.js"></script>

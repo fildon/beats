@@ -8966,9 +8966,9 @@
      * Is invoked from the clock source
      */
     _timeoutLoop() {
-      const now = this.now();
+      const now2 = this.now();
       let firstEvent = this._timeouts.peek();
-      while (this._timeouts.length && firstEvent && firstEvent.time <= now) {
+      while (this._timeouts.length && firstEvent && firstEvent.time <= now2) {
         firstEvent.callback();
         this._timeouts.shift();
         firstEvent = this._timeouts.peek();
@@ -8983,11 +8983,11 @@
      */
     setTimeout(fn, timeout) {
       this._timeoutIds++;
-      const now = this.now();
+      const now2 = this.now();
       this._timeouts.add({
         callback: fn,
         id: this._timeoutIds,
-        time: now + timeout
+        time: now2 + timeout
       });
       return this._timeoutIds;
     }
@@ -9015,14 +9015,14 @@
     setInterval(fn, interval) {
       const id = ++this._timeoutIds;
       const intervalFn = () => {
-        const now = this.now();
+        const now2 = this.now();
         this._timeouts.add({
           callback: () => {
             fn();
             intervalFn();
           },
           id,
-          time: now + interval
+          time: now2 + interval
         });
       };
       intervalFn();
@@ -10523,8 +10523,8 @@
       });
     }
     get value() {
-      const now = this.now();
-      return this.getValueAtTime(now);
+      const now2 = this.now();
+      return this.getValueAtTime(now2);
     }
     set value(value) {
       this.cancelScheduledValues(this.now());
@@ -10804,14 +10804,14 @@
      * all of the events which are scheduled on this Param onto the passed in param.
      */
     apply(param) {
-      const now = this.context.currentTime;
-      param.setValueAtTime(this.getValueAtTime(now), now);
-      const previousEvent = this._events.get(now);
+      const now2 = this.context.currentTime;
+      param.setValueAtTime(this.getValueAtTime(now2), now2);
+      const previousEvent = this._events.get(now2);
       if (previousEvent && previousEvent.type === "setTargetAtTime") {
         const nextEvent = this._events.getAfter(previousEvent.time);
-        const endTime = nextEvent ? nextEvent.time : now + 2;
-        const subdivisions = (endTime - now) / 10;
-        for (let i = now; i < endTime; i += subdivisions) {
+        const endTime = nextEvent ? nextEvent.time : now2 + 2;
+        const subdivisions = (endTime - now2) / 10;
+        for (let i = now2; i < endTime; i += subdivisions) {
           param.linearRampToValueAtTime(this.getValueAtTime(i), i);
         }
       }
@@ -11916,9 +11916,9 @@
       return this.getSecondsAtTime(this.now());
     }
     set seconds(s) {
-      const now = this.now();
-      const ticks = this.frequency.timeToTicks(s, now);
-      this.setTicksAtTime(ticks, now);
+      const now2 = this.now();
+      const ticks = this.frequency.timeToTicks(s, now2);
+      this.setTicksAtTime(ticks, now2);
     }
     /**
      * Return the elapsed seconds at the given time.
@@ -12644,10 +12644,10 @@
      * The draw loop
      */
     _drawLoop() {
-      const now = this.context.currentTime;
-      while (this._events.length && this._events.peek().time - this.anticipation <= now) {
+      const now2 = this.context.currentTime;
+      while (this._events.length && this._events.peek().time - this.anticipation <= now2) {
         const event = this._events.shift();
-        if (event && now - event.time <= this.expiration) {
+        if (event && now2 - event.time <= this.expiration) {
           event.callback();
         }
       }
@@ -13767,8 +13767,8 @@
      * Setting the value will jump to that position right away.
      */
     get position() {
-      const now = this.now();
-      const ticks = this._clock.getTicksAtTime(now);
+      const now2 = this.now();
+      const ticks = this._clock.getTicksAtTime(now2);
       return new TicksClass(this.context, ticks).toBarsBeatsSixteenths();
     }
     set position(progress) {
@@ -13783,8 +13783,8 @@
       return this._clock.seconds;
     }
     set seconds(s) {
-      const now = this.now();
-      const ticks = this._clock.frequency.timeToTicks(s, now);
+      const now2 = this.now();
+      const ticks = this._clock.frequency.timeToTicks(s, now2);
       this.ticks = ticks;
     }
     /**
@@ -13793,8 +13793,8 @@
      */
     get progress() {
       if (this.loop) {
-        const now = this.now();
-        const ticks = this._clock.getTicksAtTime(now);
+        const now2 = this.now();
+        const ticks = this._clock.getTicksAtTime(now2);
         return (ticks - this._loopStart) / (this._loopEnd - this._loopStart);
       } else {
         return 0;
@@ -13808,17 +13808,17 @@
     }
     set ticks(t) {
       if (this._clock.ticks !== t) {
-        const now = this.now();
+        const now2 = this.now();
         if (this.state === "started") {
-          const ticks = this._clock.getTicksAtTime(now);
-          const remainingTick = this._clock.frequency.getDurationOfTicks(Math.ceil(ticks) - ticks, now);
-          const time = now + remainingTick;
+          const ticks = this._clock.getTicksAtTime(now2);
+          const remainingTick = this._clock.frequency.getDurationOfTicks(Math.ceil(ticks) - ticks, now2);
+          const time = now2 + remainingTick;
           this.emit("stop", time);
           this._clock.setTicksAtTime(t, time);
           this.emit("start", time, this._clock.getSecondsAtTime(time));
         } else {
-          this.emit("ticks", now);
-          this._clock.setTicksAtTime(t, now);
+          this.emit("ticks", now2);
+          this._clock.setTicksAtTime(t, now2);
         }
       }
     }
@@ -13870,10 +13870,10 @@
       if (this.state !== "started") {
         return 0;
       } else {
-        const now = this.now();
-        const transportPos = this.getTicksAtTime(now);
+        const now2 = this.now();
+        const transportPos = this.getTicksAtTime(now2);
         const remainingTicks = subdivision - transportPos % subdivision;
-        return this._clock.nextTickTime(remainingTicks, now);
+        return this._clock.nextTickTime(remainingTicks, now2);
       }
     }
     /**
@@ -13886,9 +13886,9 @@
      * 			Otherwise it will be computed based on their current values.
      */
     syncSignal(signal, ratio) {
-      const now = this.now();
+      const now2 = this.now();
       let source = this.bpm;
-      let sourceValue = 1 / (60 / source.getValueAtTime(now) / this.PPQ);
+      let sourceValue = 1 / (60 / source.getValueAtTime(now2) / this.PPQ);
       let nodes = [];
       if (signal.units === "time") {
         const scaleFactor = 1 / 64 / sourceValue;
@@ -13901,8 +13901,8 @@
         nodes = [scaleBefore, reciprocal, scaleAfter];
       }
       if (!ratio) {
-        if (signal.getValueAtTime(now) !== 0) {
-          ratio = signal.getValueAtTime(now) / sourceValue;
+        if (signal.getValueAtTime(now2) !== 0) {
+          ratio = signal.getValueAtTime(now2) / sourceValue;
         } else {
           ratio = 0;
         }
@@ -15613,10 +15613,10 @@
       if (oscType !== this._sourceType) {
         this._sourceType = oscType;
         const OscConstructor = OmniOscillatorSourceMap[oscType];
-        const now = this.now();
+        const now2 = this.now();
         if (this._oscillator) {
           const oldOsc = this._oscillator;
-          oldOsc.stop(now);
+          oldOsc.stop(now2);
           this.context.setTimeout(() => oldOsc.dispose(), this.blockTime);
         }
         this._oscillator = new OscConstructor({
@@ -15627,7 +15627,7 @@
         this._oscillator.connect(this.output);
         this._oscillator.onstop = () => this.onstop(this);
         if (this.state === "started") {
-          this._oscillator.start(now);
+          this._oscillator.start(now2);
         }
       }
     }
@@ -16089,14 +16089,14 @@
     }
     set playbackRate(rate) {
       this._playbackRate = rate;
-      const now = this.now();
-      const stopEvent = this._state.getNextState("stopped", now);
+      const now2 = this.now();
+      const stopEvent = this._state.getNextState("stopped", now2);
       if (stopEvent && stopEvent.implicitEnd) {
         this._state.cancel(stopEvent.time);
         this._activeSources.forEach((source) => source.cancelStop());
       }
       this._activeSources.forEach((source) => {
-        source.playbackRate.setValueAtTime(rate, now);
+        source.playbackRate.setValueAtTime(rate, now2);
       });
     }
     /**
@@ -18038,12 +18038,18 @@
   Channel.buses = /* @__PURE__ */ new Map();
 
   // node_modules/tone/build/esm/index.js
+  function now() {
+    return getContext().now();
+  }
   var Transport = getContext().transport;
   function getTransport() {
     return getContext().transport;
   }
   var Destination = getContext().destination;
   var Master = getContext().destination;
+  function getDestination() {
+    return getContext().destination;
+  }
   var Listener = getContext().listener;
   var Draw = getContext().draw;
   var context = getContext();
@@ -18133,6 +18139,7 @@
   var buttonStartStop = document.querySelector("#button-start-stop");
   var bpmDisplay = document.querySelector("#bpm-display");
   var rangeBPM = document.querySelector("#bpm");
+  var volumeInput = document.querySelector("#volume");
   var DEFAULT_INPUT = `HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
  B|o-------o-------||
@@ -18155,6 +18162,11 @@
     if (!event.target) return;
     bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
     getTransport().bpm.value = parseInt(event.target.value);
+  });
+  volumeInput.addEventListener("input", (event) => {
+    if (!event.target) return;
+    const targetVolume = event.target.value === "-30" ? -Infinity : parseInt(event.target.value);
+    getDestination().volume.setValueAtTime(targetVolume, now());
   });
 })();
 /*! Bundled license information:
