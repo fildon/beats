@@ -12,8 +12,26 @@ const volumeInput = document.querySelector<HTMLInputElement>("#volume")!;
 
 const DEFAULT_INPUT = `HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
- B|o-------o-------||
+ B|o-----o---o-----||
    1 + 2 + 3 + 4 +`;
+
+// Check for queryParam on page load
+const sequence = decodeURIComponent(
+  new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_INPUT
+);
+textAreaEditor.value = sequence;
+
+// Synchronize changes to the textarea to the queryparams
+textAreaEditor.addEventListener("input", () => {
+  history.pushState(
+    null,
+    "",
+    `${window.location.pathname}?sequence=${encodeURIComponent(
+      textAreaEditor.value
+    )}`
+  );
+});
+
 buttonReset.addEventListener(
   "click",
   () => (textAreaEditor.value = DEFAULT_INPUT)
