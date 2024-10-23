@@ -18142,8 +18142,21 @@
   var volumeInput = document.querySelector("#volume");
   var DEFAULT_INPUT = `HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
- B|o-------o-------||
+ B|o-----o---o-----||
    1 + 2 + 3 + 4 +`;
+  var sequence = decodeURIComponent(
+    new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_INPUT
+  );
+  textAreaEditor.value = sequence;
+  textAreaEditor.addEventListener("input", () => {
+    history.pushState(
+      null,
+      "",
+      `${window.location.pathname}?sequence=${encodeURIComponent(
+        textAreaEditor.value
+      )}`
+    );
+  });
   buttonReset.addEventListener(
     "click",
     () => textAreaEditor.value = DEFAULT_INPUT
