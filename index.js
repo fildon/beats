@@ -18140,26 +18140,36 @@
   var bpmDisplay = document.querySelector("#bpm-display");
   var rangeBPM = document.querySelector("#bpm");
   var volumeInput = document.querySelector("#volume");
-  var DEFAULT_INPUT = `HH|x-x-x-x-x-x-x-x-||
+  var DEFAULT_TAB_INPUT = `HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
  B|o-----o---o-----||
    1 + 2 + 3 + 4 +`;
+  var DEFAULT_BPM = 80;
   var sequence = decodeURIComponent(
-    new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_INPUT
+    new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_TAB_INPUT
   );
   textAreaEditor.value = sequence;
-  textAreaEditor.addEventListener("input", () => {
+  var extractBpm = (urlBpm) => {
+    const bpmValue = parseInt(urlBpm ?? "");
+    return isNaN(bpmValue) || bpmValue < 40 || bpmValue > 200 ? DEFAULT_BPM : bpmValue;
+  };
+  var bpm = extractBpm(new URLSearchParams(window.location.search).get("bpm"));
+  rangeBPM.value = bpm.toString();
+  bpmDisplay.textContent = `Current BPM: ${bpm}`;
+  var constructUrl = (sequence2, bpm2) => {
+    return `${window.location.pathname}?sequence=${encodeURIComponent(sequence2)}&bpm=${bpm2}`;
+  };
+  var updateUrl = () => {
     history.pushState(
       null,
       "",
-      `${window.location.pathname}?sequence=${encodeURIComponent(
-        textAreaEditor.value
-      )}`
+      constructUrl(textAreaEditor.value, parseInt(rangeBPM.value))
     );
-  });
+  };
+  textAreaEditor.addEventListener("input", updateUrl);
   buttonReset.addEventListener(
     "click",
-    () => textAreaEditor.value = DEFAULT_INPUT
+    () => textAreaEditor.value = DEFAULT_TAB_INPUT
   );
   var audioEngine = new AudioEngine();
   buttonStartStop.addEventListener("click", async () => {
@@ -18175,6 +18185,7 @@
     if (!event.target) return;
     bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
     getTransport().bpm.value = parseInt(event.target.value);
+    updateUrl();
   });
   volumeInput.addEventListener("input", (event) => {
     if (!event.target) return;
