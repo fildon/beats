@@ -10,31 +10,46 @@ const bpmDisplay = document.querySelector<HTMLSpanElement>("#bpm-display")!;
 const rangeBPM = document.querySelector<HTMLInputElement>("#bpm")!;
 const volumeInput = document.querySelector<HTMLInputElement>("#volume")!;
 
-const DEFAULT_INPUT = `HH|x-x-x-x-x-x-x-x-||
+const DEFAULT_TAB_INPUT = `HH|x-x-x-x-x-x-x-x-||
  S|----o-------o---||
  B|o-----o---o-----||
    1 + 2 + 3 + 4 +`;
 
-// Check for queryParam on page load
+const DEFAULT_BPM = 80;
+
+// Check for drum sequence queryParam on page load
 const sequence = decodeURIComponent(
-  new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_INPUT
+  new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_TAB_INPUT
 );
 textAreaEditor.value = sequence;
 
-// Synchronize changes to the textarea to the queryparams
-textAreaEditor.addEventListener("input", () => {
+// Check for bpm queryParam on page load
+const extractBpm = (urlBpm: string | null) => {
+  const bpmValue = parseInt(urlBpm ?? '');
+  return isNaN(bpmValue) || bpmValue < 40 || bpmValue > 200 ? DEFAULT_BPM : bpmValue;
+};
+const bpm = extractBpm(new URLSearchParams(window.location.search).get("bpm"))
+rangeBPM.value = bpm.toString();
+bpmDisplay.textContent = `Current BPM: ${bpm}`;
+
+const constructUrl = (sequence: string, bpm: number) => {
+    return `${window.location.pathname}?sequence=${encodeURIComponent(sequence)}&bpm=${bpm}`;
+}
+
+const updateUrl = () => {
   history.pushState(
-    null,
-    "",
-    `${window.location.pathname}?sequence=${encodeURIComponent(
-      textAreaEditor.value
-    )}`
+      null,
+      "",
+      constructUrl(textAreaEditor.value, parseInt(rangeBPM.value))
   );
-});
+};
+
+// Synchronize changes to the textarea to the queryparams
+textAreaEditor.addEventListener("input", updateUrl);
 
 buttonReset.addEventListener(
   "click",
-  () => (textAreaEditor.value = DEFAULT_INPUT)
+  () => (textAreaEditor.value = DEFAULT_TAB_INPUT)
 );
 
 const audioEngine = new AudioEngine();
@@ -52,6 +67,9 @@ rangeBPM.addEventListener("input", (event: any) => {
   if (!event.target) return;
   bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
   Tone.getTransport().bpm.value = parseInt(event.target.value);
+  
+  // Synchronize changes to the bpm to the queryparams
+  updateUrl()
 });
 
 volumeInput.addEventListener("input", (event: any) => {
