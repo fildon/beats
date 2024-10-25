@@ -44,7 +44,7 @@ const updateUrl = () => {
   );
 };
 
-// Synchronize changes to the inputs to the queryparams
+// Synchronize changes to the textarea to the queryparams
 textAreaEditor.addEventListener("input", updateUrl);
 
 buttonReset.addEventListener(
@@ -67,6 +67,8 @@ rangeBPM.addEventListener("input", (event: any) => {
   if (!event.target) return;
   bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
   Tone.getTransport().bpm.value = parseInt(event.target.value);
+  
+  // Synchronize changes to the bpm to the queryparams
   updateUrl()
 });
 
