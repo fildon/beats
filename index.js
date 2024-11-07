@@ -18154,6 +18154,7 @@
     return isNaN(bpmValue) || bpmValue < 40 || bpmValue > 200 ? DEFAULT_BPM : bpmValue;
   };
   var bpm = extractBpm(new URLSearchParams(window.location.search).get("bpm"));
+  getTransport().bpm.value = bpm;
   rangeBPM.value = bpm.toString();
   bpmDisplay.textContent = `Current BPM: ${bpm}`;
   var constructUrl = (sequence2, bpm2) => {
