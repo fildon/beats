@@ -32,6 +32,7 @@ const extractBpm = (urlBpm: string | null) => {
     : bpmValue;
 };
 const bpm = extractBpm(new URLSearchParams(window.location.search).get("bpm"));
+Tone.getTransport().bpm.value = bpm;
 rangeBPM.value = bpm.toString();
 bpmDisplay.textContent = `Current BPM: ${bpm}`;
 
