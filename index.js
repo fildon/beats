@@ -18157,16 +18157,23 @@
   rangeBPM.value = bpm.toString();
   bpmDisplay.textContent = `Current BPM: ${bpm}`;
   var constructUrl = (sequence2, bpm2) => {
-    return `${window.location.pathname}?sequence=${encodeURIComponent(sequence2)}&bpm=${bpm2}`;
+    return `${window.location.pathname}?sequence=${encodeURIComponent(
+      sequence2
+    )}&bpm=${bpm2}`;
   };
-  var updateUrl = () => {
+  var synchronizeStateToQueryParams = () => {
     history.pushState(
       null,
       "",
       constructUrl(textAreaEditor.value, parseInt(rangeBPM.value))
     );
   };
-  textAreaEditor.addEventListener("input", updateUrl);
+  var handleTextAreaEditorInput = () => {
+    textAreaEditor.cols = (textAreaEditor.value.replace(/(\r\n)|\r|\n/g, "\n").split(/\n/g).sort((a, b) => b.length - a.length)[0].length ?? 0) + 2;
+    synchronizeStateToQueryParams();
+  };
+  handleTextAreaEditorInput();
+  textAreaEditor.addEventListener("input", handleTextAreaEditorInput);
   buttonReset.addEventListener(
     "click",
     () => textAreaEditor.value = DEFAULT_TAB_INPUT
@@ -18185,7 +18192,7 @@
     if (!event.target) return;
     bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
     getTransport().bpm.value = parseInt(event.target.value);
-    updateUrl();
+    synchronizeStateToQueryParams();
   });
   volumeInput.addEventListener("input", (event) => {
     if (!event.target) return;
