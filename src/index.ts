@@ -19,33 +19,51 @@ const DEFAULT_BPM = 80;
 
 // Check for drum sequence queryParam on page load
 const sequence = decodeURIComponent(
-  new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_TAB_INPUT
+  new URLSearchParams(window.location.search).get("sequence") ??
+    DEFAULT_TAB_INPUT
 );
 textAreaEditor.value = sequence;
 
 // Check for bpm queryParam on page load
 const extractBpm = (urlBpm: string | null) => {
-  const bpmValue = parseInt(urlBpm ?? '');
-  return isNaN(bpmValue) || bpmValue < 40 || bpmValue > 200 ? DEFAULT_BPM : bpmValue;
+  const bpmValue = parseInt(urlBpm ?? "");
+  return isNaN(bpmValue) || bpmValue < 40 || bpmValue > 200
+    ? DEFAULT_BPM
+    : bpmValue;
 };
-const bpm = extractBpm(new URLSearchParams(window.location.search).get("bpm"))
+const bpm = extractBpm(new URLSearchParams(window.location.search).get("bpm"));
 rangeBPM.value = bpm.toString();
 bpmDisplay.textContent = `Current BPM: ${bpm}`;
 
 const constructUrl = (sequence: string, bpm: number) => {
-    return `${window.location.pathname}?sequence=${encodeURIComponent(sequence)}&bpm=${bpm}`;
-}
+  return `${window.location.pathname}?sequence=${encodeURIComponent(
+    sequence
+  )}&bpm=${bpm}`;
+};
 
-const updateUrl = () => {
+const synchronizeStateToQueryParams = () => {
   history.pushState(
-      null,
-      "",
-      constructUrl(textAreaEditor.value, parseInt(rangeBPM.value))
+    null,
+    "",
+    constructUrl(textAreaEditor.value, parseInt(rangeBPM.value))
   );
 };
 
-// Synchronize changes to the textarea to the queryparams
-textAreaEditor.addEventListener("input", updateUrl);
+const handleTextAreaEditorInput = () => {
+  textAreaEditor.cols =
+    (textAreaEditor.value
+      .replace(/(\r\n)|\r|\n/g, "\n")
+      .split(/\n/g)
+      .sort((a, b) => b.length - a.length)[0].length ?? 0) + 2;
+
+  // Synchronize changes to the textarea to the queryparams
+  synchronizeStateToQueryParams();
+};
+
+// Dry run the handler here since we've either loaded the default input or a queryparam input
+handleTextAreaEditorInput();
+
+textAreaEditor.addEventListener("input", handleTextAreaEditorInput);
 
 buttonReset.addEventListener(
   "click",
@@ -67,9 +85,9 @@ rangeBPM.addEventListener("input", (event: any) => {
   if (!event.target) return;
   bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
   Tone.getTransport().bpm.value = parseInt(event.target.value);
-  
+
   // Synchronize changes to the bpm to the queryparams
-  updateUrl()
+  synchronizeStateToQueryParams();
 });
 
 volumeInput.addEventListener("input", (event: any) => {
