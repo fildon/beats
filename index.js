@@ -18093,50 +18093,10 @@
   var tom3_default = "./tom3-EZX26TG3.mp3";
 
   // src/audioEngine.ts
-  var hihatSampler = new Sampler(
-    { C4: hihat_default },
-    { onload: () => {
-    } }
-  ).toDestination();
-  var snareSampler = new Sampler(
-    { C4: snare_default },
-    { onload: () => {
-    } }
-  ).toDestination();
-  var kickSampler = new Sampler(
-    { C4: kick_default },
-    { onload: () => {
-    } }
-  ).toDestination();
-  var tom1Sampler = new Sampler(
-    { C4: tom1_default },
-    { onload: () => {
-    } }
-  ).toDestination();
-  var tom2Sampler = new Sampler(
-    { C4: tom2_default },
-    { onload: () => {
-    } }
-  ).toDestination();
-  var tom3Sampler = new Sampler(
-    { C4: tom3_default },
-    { onload: () => {
-    } }
-  ).toDestination();
-  var selectSampler = (instrument) => ({
-    hh: hihatSampler,
-    s: snareSampler,
-    b: kickSampler,
-    bd: kickSampler,
-    t1: tom1Sampler,
-    t2: tom2Sampler,
-    t3: tom3Sampler
-  })[instrument.toLowerCase()] ?? null;
   var gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
   var lcm = (a, b) => a * b / gcd(a, b);
   var lcmArray = (arr) => arr.length === 0 ? 1 : arr.reduce(lcm);
-  var lineToLoop = (line, unifiedLoopLength) => {
-    const sampler = selectSampler(line.instrument);
+  var lineToLoop = (line, unifiedLoopLength, sampler) => {
     if (!sampler) return new Loop(() => {
     }, "16n");
     const playableSymbols = toPlayableSymbols(line.pattern);
@@ -18159,6 +18119,57 @@
       this.hasPrewarmed = false;
       this.prewarmTask = null;
       this.loops = [];
+      // Sampler instances owned by AudioEngine, created fresh on each start(),
+      // disposed on stop() to prevent memory leaks from repeated play cycles
+      this.hihatSampler = null;
+      this.snareSampler = null;
+      this.kickSampler = null;
+      this.tom1Sampler = null;
+      this.tom2Sampler = null;
+      this.tom3Sampler = null;
+    }
+    initializeSamplers() {
+      this.hihatSampler = new Sampler(
+        { C4: hihat_default },
+        { onload: () => {
+        } }
+      ).toDestination();
+      this.snareSampler = new Sampler(
+        { C4: snare_default },
+        { onload: () => {
+        } }
+      ).toDestination();
+      this.kickSampler = new Sampler(
+        { C4: kick_default },
+        { onload: () => {
+        } }
+      ).toDestination();
+      this.tom1Sampler = new Sampler(
+        { C4: tom1_default },
+        { onload: () => {
+        } }
+      ).toDestination();
+      this.tom2Sampler = new Sampler(
+        { C4: tom2_default },
+        { onload: () => {
+        } }
+      ).toDestination();
+      this.tom3Sampler = new Sampler(
+        { C4: tom3_default },
+        { onload: () => {
+        } }
+      ).toDestination();
+    }
+    selectSampler(instrument) {
+      return {
+        hh: this.hihatSampler,
+        s: this.snareSampler,
+        b: this.kickSampler,
+        bd: this.kickSampler,
+        t1: this.tom1Sampler,
+        t2: this.tom2Sampler,
+        t3: this.tom3Sampler
+      }[instrument.toLowerCase()] ?? null;
     }
     async prewarm() {
       if (this.hasPrewarmed) return;
@@ -18177,18 +18188,50 @@
     }
     start({ tab }) {
       this.loops.forEach((loop) => loop.dispose());
+      this.disposeSamplers();
+      this.initializeSamplers();
       const tabLines = parseTabToInstrumentLines(tab);
       const barLengths = tabLines.map(
         (line) => toPlayableSymbols(line.pattern).length
       );
       const unifiedLoopLength = lcmArray(barLengths);
-      this.loops = tabLines.map((line) => lineToLoop(line, unifiedLoopLength));
+      this.loops = tabLines.map((line) => {
+        const sampler = this.selectSampler(line.instrument);
+        return lineToLoop(line, unifiedLoopLength, sampler);
+      });
       this.loops.forEach((loop) => loop.start(0));
       getTransport().start();
+    }
+    disposeSamplers() {
+      if (this.hihatSampler) {
+        this.hihatSampler.dispose();
+        this.hihatSampler = null;
+      }
+      if (this.snareSampler) {
+        this.snareSampler.dispose();
+        this.snareSampler = null;
+      }
+      if (this.kickSampler) {
+        this.kickSampler.dispose();
+        this.kickSampler = null;
+      }
+      if (this.tom1Sampler) {
+        this.tom1Sampler.dispose();
+        this.tom1Sampler = null;
+      }
+      if (this.tom2Sampler) {
+        this.tom2Sampler.dispose();
+        this.tom2Sampler = null;
+      }
+      if (this.tom3Sampler) {
+        this.tom3Sampler.dispose();
+        this.tom3Sampler = null;
+      }
     }
     stop() {
       this.loops.forEach((loop) => loop.dispose());
       this.loops = [];
+      this.disposeSamplers();
       getTransport().stop();
     }
     get state() {
