@@ -1,3 +1,4 @@
+"use strict";
 (() => {
   var __create = Object.create;
   var __defProp = Object.defineProperty;
@@ -9591,6 +9592,9 @@
       globalContext = context2;
     }
   }
+  function start() {
+    return globalContext.resume();
+  }
   if (theWindow && !theWindow.TONE_SILENCE_LOGGING) {
     let prefix = "v";
     if (version === "dev") {
@@ -9981,9 +9985,6 @@
       return this.context.now();
     }
   };
-  function Time(value, units) {
-    return new TimeClass(getContext(), value, units);
-  }
 
   // node_modules/tone/build/esm/core/type/Frequency.js
   var FrequencyClass = class _FrequencyClass extends TimeClass {
@@ -18053,6 +18054,25 @@
   var Listener = getContext().listener;
   var Draw = getContext().draw;
   var context = getContext();
+  function loaded() {
+    return ToneAudioBuffer.loaded();
+  }
+
+  // src/tabParsing.ts
+  var parseLine = (tabLine) => {
+    const firstSeparatorIndex = tabLine.indexOf("|");
+    if (firstSeparatorIndex === -1) return null;
+    const instrument = tabLine.slice(0, firstSeparatorIndex).trim();
+    const rawPattern = tabLine.slice(firstSeparatorIndex + 1);
+    const pattern = rawPattern.replace(/\|+\s*$/, "").replace(/\s+$/, "");
+    return instrument && pattern ? { instrument, pattern } : null;
+  };
+  var parseTabToInstrumentLines = (tab) => {
+    const normalizedTab = tab.replace(/(\r\n)|\r|\n/g, "\n");
+    const tabLines = normalizedTab.split(/\n/g);
+    return tabLines.map(parseLine).filter((line) => line !== null);
+  };
+  var toPlayableSymbols = (pattern) => pattern.split("").filter((symbol) => symbol !== "|");
 
   // audio/hihat.mp3
   var hihat_default = "./hihat-LGNLSE6T.mp3";
@@ -18073,60 +18093,103 @@
   var tom3_default = "./tom3-EZX26TG3.mp3";
 
   // src/audioEngine.ts
-  var kickPlayer = new Player(kick_default).toDestination();
-  var snarePlayer = new Player(snare_default).toDestination();
-  var hihatPlayer = new Player(hihat_default).toDestination();
-  var tom1Player = new Player(tom1_default).toDestination();
-  var tom2Player = new Player(tom2_default).toDestination();
-  var tom3Player = new Player(tom3_default).toDestination();
-  var selectPlayer = (instrument) => ({
-    hh: hihatPlayer,
-    s: snarePlayer,
-    // Kick is aliased as both "b" and "bd"
-    b: kickPlayer,
-    bd: kickPlayer,
-    t1: tom1Player,
-    t2: tom2Player,
-    t3: tom3Player
-  })[instrument.toLowerCase()];
-  var parseLine = (tabLine) => {
-    const [instrument, pattern] = tabLine.split("|").map((string) => string.trim());
-    return instrument && pattern ? { instrument, pattern } : null;
-  };
-  var parseTabToInstrumentLines = (tab) => {
-    tab.replace(/(\r\n)|\r|\n/g, "\n");
-    const tabLines = tab.split(/\n/g);
-    return tabLines.map(parseLine).filter((line) => !!line);
-  };
-  var lineToLoops = (line) => {
-    const player = selectPlayer(line.instrument);
-    if (!player) return [];
-    const loopInterval = line.pattern.length;
-    return line.pattern.split("").flatMap((symbol, index) => {
+  var hihatSampler = new Sampler(
+    { C4: hihat_default },
+    { onload: () => {
+    } }
+  ).toDestination();
+  var snareSampler = new Sampler(
+    { C4: snare_default },
+    { onload: () => {
+    } }
+  ).toDestination();
+  var kickSampler = new Sampler(
+    { C4: kick_default },
+    { onload: () => {
+    } }
+  ).toDestination();
+  var tom1Sampler = new Sampler(
+    { C4: tom1_default },
+    { onload: () => {
+    } }
+  ).toDestination();
+  var tom2Sampler = new Sampler(
+    { C4: tom2_default },
+    { onload: () => {
+    } }
+  ).toDestination();
+  var tom3Sampler = new Sampler(
+    { C4: tom3_default },
+    { onload: () => {
+    } }
+  ).toDestination();
+  var selectSampler = (instrument) => ({
+    hh: hihatSampler,
+    s: snareSampler,
+    b: kickSampler,
+    bd: kickSampler,
+    t1: tom1Sampler,
+    t2: tom2Sampler,
+    t3: tom3Sampler
+  })[instrument.toLowerCase()] ?? null;
+  var gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+  var lcm = (a, b) => a * b / gcd(a, b);
+  var lcmArray = (arr) => arr.length === 0 ? 1 : arr.reduce(lcm);
+  var lineToLoop = (line, unifiedLoopLength) => {
+    const sampler = selectSampler(line.instrument);
+    if (!sampler) return new Loop(() => {
+    }, "16n");
+    const playableSymbols = toPlayableSymbols(line.pattern);
+    const barLengthTicks = playableSymbols.length;
+    if (barLengthTicks === 0) return new Loop(() => {
+    }, "16n");
+    let noteIndex = 0;
+    const loop = new Loop((time) => {
+      const patternPosition = noteIndex % barLengthTicks;
+      const symbol = playableSymbols[patternPosition];
       if (["x", "o"].includes(symbol)) {
-        return new Loop((time) => {
-          player.start(time);
-        }, Time({ "16n": loopInterval }).valueOf()).start(
-          Time({ "16n": index }).valueOf()
-        );
-      } else {
-        return [];
+        sampler.triggerAttack("C4", time);
       }
-    });
+      noteIndex = (noteIndex + 1) % unifiedLoopLength;
+    }, "16n");
+    return loop;
   };
   var AudioEngine = class {
-    constructor(loops = []) {
-      this.loops = loops;
+    constructor() {
+      this.hasPrewarmed = false;
+      this.prewarmTask = null;
+      this.loops = [];
+    }
+    async prewarm() {
+      if (this.hasPrewarmed) return;
+      if (this.prewarmTask) return this.prewarmTask;
+      this.prewarmTask = (async () => {
+        await start();
+        await loaded();
+        getContext().lookAhead = 1;
+        this.hasPrewarmed = true;
+      })();
+      try {
+        await this.prewarmTask;
+      } finally {
+        this.prewarmTask = null;
+      }
     }
     start({ tab }) {
+      this.loops.forEach((loop) => loop.dispose());
       const tabLines = parseTabToInstrumentLines(tab);
-      this.loops = tabLines.flatMap(lineToLoops);
+      const barLengths = tabLines.map(
+        (line) => toPlayableSymbols(line.pattern).length
+      );
+      const unifiedLoopLength = lcmArray(barLengths);
+      this.loops = tabLines.map((line) => lineToLoop(line, unifiedLoopLength));
+      this.loops.forEach((loop) => loop.start(0));
       getTransport().start();
     }
     stop() {
-      this.loops.forEach((loop) => loop.stop());
+      this.loops.forEach((loop) => loop.dispose());
+      this.loops = [];
       getTransport().stop();
-      getTransport().state;
     }
     get state() {
       return getTransport().state;
@@ -18145,9 +18208,7 @@
  B|o-----o---o-----||
    1 + 2 + 3 + 4 +`;
   var DEFAULT_BPM = 80;
-  var sequence = decodeURIComponent(
-    new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_TAB_INPUT
-  );
+  var sequence = new URLSearchParams(window.location.search).get("sequence") ?? DEFAULT_TAB_INPUT;
   textAreaEditor.value = sequence;
   var extractBpm = (urlBpm) => {
     const bpmValue = parseInt(urlBpm ?? "");
@@ -18163,24 +18224,37 @@
     )}&bpm=${bpm2}`;
   };
   var synchronizeStateToQueryParams = () => {
-    history.pushState(
+    history.replaceState(
       null,
       "",
       constructUrl(textAreaEditor.value, parseInt(rangeBPM.value))
     );
   };
+  var syncUIFromState = () => {
+    handleTextAreaEditorInput();
+    bpmDisplay.textContent = `Current BPM: ${rangeBPM.value}`;
+  };
   var handleTextAreaEditorInput = () => {
-    textAreaEditor.cols = (textAreaEditor.value.replace(/(\r\n)|\r|\n/g, "\n").split(/\n/g).sort((a, b) => b.length - a.length)[0].length ?? 0) + 2;
+    const longestLine = textAreaEditor.value.replace(/(\r\n)|\r|\n/g, "\n").split(/\n/g).sort((a, b) => b.length - a.length)[0] ?? "";
+    textAreaEditor.cols = longestLine.length + 2;
     synchronizeStateToQueryParams();
   };
-  handleTextAreaEditorInput();
+  syncUIFromState();
   textAreaEditor.addEventListener("input", handleTextAreaEditorInput);
-  buttonReset.addEventListener(
-    "click",
-    () => textAreaEditor.value = DEFAULT_TAB_INPUT
-  );
+  buttonReset.addEventListener("click", () => {
+    textAreaEditor.value = DEFAULT_TAB_INPUT;
+    syncUIFromState();
+  });
   var audioEngine = new AudioEngine();
+  document.addEventListener(
+    "pointerdown",
+    () => {
+      void audioEngine.prewarm();
+    },
+    { once: true }
+  );
   buttonStartStop.addEventListener("click", async () => {
+    await audioEngine.prewarm();
     if (audioEngine.state === "started") {
       audioEngine.stop();
       buttonStartStop.textContent = "Start";
@@ -18190,14 +18264,16 @@
     }
   });
   rangeBPM.addEventListener("input", (event) => {
-    if (!event.target) return;
-    bpmDisplay.textContent = `Current BPM: ${event.target.value}`;
-    getTransport().bpm.value = parseInt(event.target.value);
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    bpmDisplay.textContent = `Current BPM: ${target.value}`;
+    getTransport().bpm.value = parseInt(target.value);
     synchronizeStateToQueryParams();
   });
   volumeInput.addEventListener("input", (event) => {
-    if (!event.target) return;
-    const targetVolume = event.target.value === "-30" ? -Infinity : parseInt(event.target.value);
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const targetVolume = target.value === "-30" ? -Infinity : parseInt(target.value);
     getDestination().volume.setValueAtTime(targetVolume, now());
   });
 })();
