@@ -18107,7 +18107,7 @@
     const loop = new Loop((time) => {
       const patternPosition = noteIndex % barLengthTicks;
       const symbol = playableSymbols[patternPosition];
-      if (["x", "o"].includes(symbol)) {
+      if (symbol === "x" || symbol === "o") {
         sampler.triggerAttack("C4", time);
       }
       noteIndex = (noteIndex + 1) % unifiedLoopLength;
@@ -18186,10 +18186,12 @@
         this.prewarmTask = null;
       }
     }
-    start({ tab }) {
+    async start({ tab }) {
+      await this.prewarm();
       this.loops.forEach((loop) => loop.dispose());
       this.disposeSamplers();
       this.initializeSamplers();
+      await loaded();
       const tabLines = parseTabToInstrumentLines(tab);
       const barLengths = tabLines.map(
         (line) => toPlayableSymbols(line.pattern).length
@@ -18297,13 +18299,16 @@
     { once: true }
   );
   buttonStartStop.addEventListener("click", async () => {
-    await audioEngine.prewarm();
     if (audioEngine.state === "started") {
       audioEngine.stop();
       buttonStartStop.textContent = "Start";
     } else {
-      audioEngine.start({ tab: textAreaEditor.value });
-      buttonStartStop.textContent = "Stop";
+      try {
+        await audioEngine.start({ tab: textAreaEditor.value });
+        buttonStartStop.textContent = "Stop";
+      } catch (error) {
+        console.error("Unable to start audio engine", error);
+      }
     }
   });
   rangeBPM.addEventListener("input", (event) => {
