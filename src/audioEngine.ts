@@ -19,46 +19,6 @@ import tom2 from "../audio/tom2.mp3";
 import tom3 from "../audio/tom3.mp3";
 
 /**
- * Tone.Sampler handles polyphony natively with proper voice management.
- * This is more reliable than manual voice pooling.
- */
-const hihatSampler = new Tone.Sampler(
-  { C4: hihat },
-  { onload: () => {} },
-).toDestination();
-const snareSampler = new Tone.Sampler(
-  { C4: snare },
-  { onload: () => {} },
-).toDestination();
-const kickSampler = new Tone.Sampler(
-  { C4: kick },
-  { onload: () => {} },
-).toDestination();
-const tom1Sampler = new Tone.Sampler(
-  { C4: tom1 },
-  { onload: () => {} },
-).toDestination();
-const tom2Sampler = new Tone.Sampler(
-  { C4: tom2 },
-  { onload: () => {} },
-).toDestination();
-const tom3Sampler = new Tone.Sampler(
-  { C4: tom3 },
-  { onload: () => {} },
-).toDestination();
-
-const selectSampler = (instrument: string): Tone.Sampler | null =>
-  ({
-    hh: hihatSampler,
-    s: snareSampler,
-    b: kickSampler,
-    bd: kickSampler,
-    t1: tom1Sampler,
-    t2: tom2Sampler,
-    t3: tom3Sampler,
-  })[instrument.toLowerCase()] ?? null;
-
-/**
  * Calculate the least common multiple of an array of numbers.
  * Ensures all instrument patterns loop at a synchronized boundary.
  */
@@ -76,8 +36,8 @@ const lcmArray = (arr: number[]): number =>
 const lineToLoop = (
   line: InstrumentLine,
   unifiedLoopLength: number,
+  sampler: Tone.Sampler | null,
 ): Tone.Loop => {
-  const sampler = selectSampler(line.instrument);
   if (!sampler) return new Tone.Loop(() => {}, "16n");
 
   const playableSymbols = toPlayableSymbols(line.pattern);
@@ -109,7 +69,59 @@ export class AudioEngine {
   private prewarmTask: Promise<void> | null = null;
   private loops: Array<Tone.Loop> = [];
 
+  // Sampler instances owned by AudioEngine, created fresh on each start(),
+  // disposed on stop() to prevent memory leaks from repeated play cycles
+  private hihatSampler: Tone.Sampler | null = null;
+  private snareSampler: Tone.Sampler | null = null;
+  private kickSampler: Tone.Sampler | null = null;
+  private tom1Sampler: Tone.Sampler | null = null;
+  private tom2Sampler: Tone.Sampler | null = null;
+  private tom3Sampler: Tone.Sampler | null = null;
+
   constructor() {}
+
+  private initializeSamplers(): void {
+    // Create fresh sampler instances. Tone.Sampler handles polyphony natively
+    // with proper voice management.
+    this.hihatSampler = new Tone.Sampler(
+      { C4: hihat },
+      { onload: () => {} },
+    ).toDestination();
+    this.snareSampler = new Tone.Sampler(
+      { C4: snare },
+      { onload: () => {} },
+    ).toDestination();
+    this.kickSampler = new Tone.Sampler(
+      { C4: kick },
+      { onload: () => {} },
+    ).toDestination();
+    this.tom1Sampler = new Tone.Sampler(
+      { C4: tom1 },
+      { onload: () => {} },
+    ).toDestination();
+    this.tom2Sampler = new Tone.Sampler(
+      { C4: tom2 },
+      { onload: () => {} },
+    ).toDestination();
+    this.tom3Sampler = new Tone.Sampler(
+      { C4: tom3 },
+      { onload: () => {} },
+    ).toDestination();
+  }
+
+  private selectSampler(instrument: string): Tone.Sampler | null {
+    return (
+      {
+        hh: this.hihatSampler,
+        s: this.snareSampler,
+        b: this.kickSampler,
+        bd: this.kickSampler,
+        t1: this.tom1Sampler,
+        t2: this.tom2Sampler,
+        t3: this.tom3Sampler,
+      }[instrument.toLowerCase()] ?? null
+    );
+  }
 
   async prewarm() {
     if (this.hasPrewarmed) return;
@@ -138,6 +150,10 @@ export class AudioEngine {
 
   start({ tab }: { tab: string }) {
     this.loops.forEach((loop) => loop.dispose());
+    this.disposeSamplers();
+
+    // Create fresh sampler instances for this play cycle
+    this.initializeSamplers();
 
     const tabLines = parseTabToInstrumentLines(tab);
 
@@ -149,7 +165,10 @@ export class AudioEngine {
     const unifiedLoopLength = lcmArray(barLengths);
 
     // Create loops, all firing on 16n at the unified boundary
-    this.loops = tabLines.map((line) => lineToLoop(line, unifiedLoopLength));
+    this.loops = tabLines.map((line) => {
+      const sampler = this.selectSampler(line.instrument);
+      return lineToLoop(line, unifiedLoopLength, sampler);
+    });
 
     // Start all loops at the beginning
     this.loops.forEach((loop) => loop.start(0));
@@ -157,9 +176,37 @@ export class AudioEngine {
     Tone.getTransport().start();
   }
 
+  private disposeSamplers(): void {
+    if (this.hihatSampler) {
+      this.hihatSampler.dispose();
+      this.hihatSampler = null;
+    }
+    if (this.snareSampler) {
+      this.snareSampler.dispose();
+      this.snareSampler = null;
+    }
+    if (this.kickSampler) {
+      this.kickSampler.dispose();
+      this.kickSampler = null;
+    }
+    if (this.tom1Sampler) {
+      this.tom1Sampler.dispose();
+      this.tom1Sampler = null;
+    }
+    if (this.tom2Sampler) {
+      this.tom2Sampler.dispose();
+      this.tom2Sampler = null;
+    }
+    if (this.tom3Sampler) {
+      this.tom3Sampler.dispose();
+      this.tom3Sampler = null;
+    }
+  }
+
   stop() {
     this.loops.forEach((loop) => loop.dispose());
     this.loops = [];
+    this.disposeSamplers();
     Tone.getTransport().stop();
   }
 
