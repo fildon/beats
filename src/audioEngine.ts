@@ -52,7 +52,7 @@ const lineToLoop = (
     const patternPosition = noteIndex % barLengthTicks;
     const symbol = playableSymbols[patternPosition];
 
-    if (["x", "o"].includes(symbol)) {
+    if (symbol === "x" || symbol === "o") {
       // Tone.Sampler.triggerAttack handles polyphony internally
       sampler.triggerAttack("C4", time);
     }
@@ -148,12 +148,19 @@ export class AudioEngine {
     }
   }
 
-  start({ tab }: { tab: string }) {
+  async start({ tab }: { tab: string }) {
+    // Ensure AudioContext is resumed before we schedule anything.
+    await this.prewarm();
+
     this.loops.forEach((loop) => loop.dispose());
     this.disposeSamplers();
 
     // Create fresh sampler instances for this play cycle
     this.initializeSamplers();
+
+    // Wait for the newly created sampler buffers to load before playback.
+    // Without this, triggerAttack can throw when a buffer is still pending.
+    await Tone.loaded();
 
     const tabLines = parseTabToInstrumentLines(tab);
 

@@ -87,14 +87,16 @@ document.addEventListener(
 );
 
 buttonStartStop.addEventListener("click", async () => {
-  await audioEngine.prewarm();
-
   if (audioEngine.state === "started") {
     audioEngine.stop();
     buttonStartStop.textContent = "Start";
   } else {
-    audioEngine.start({ tab: textAreaEditor.value });
-    buttonStartStop.textContent = "Stop";
+    try {
+      await audioEngine.start({ tab: textAreaEditor.value });
+      buttonStartStop.textContent = "Stop";
+    } catch (error) {
+      console.error("Unable to start audio engine", error);
+    }
   }
 });
 
