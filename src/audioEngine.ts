@@ -149,7 +149,15 @@ export class AudioEngine {
   }
 
   async start({ tab }: { tab: string }) {
-    // Ensure AudioContext is resumed before we schedule anything.
+    // Always resume the AudioContext directly from the user gesture (the Start
+    // button click). On Android Firefox the context can re-suspend after a page
+    // visibility change, and Firefox's user-gesture token is less reliably
+    // propagated through nested async chains than in Chrome/Safari. Calling
+    // Tone.start() here guarantees we resume from the most direct gesture
+    // possible. It is idempotent: a no-op when the context is already running.
+    await Tone.start();
+
+    // Finish any remaining prewarm work (sample loading, lookAhead config).
     await this.prewarm();
 
     this.loops.forEach((loop) => loop.dispose());
