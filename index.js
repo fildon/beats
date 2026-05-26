@@ -18187,6 +18187,7 @@
       }
     }
     async start({ tab }) {
+      await start();
       await this.prewarm();
       this.loops.forEach((loop) => loop.dispose());
       this.disposeSamplers();
